@@ -49,12 +49,11 @@ jobs:
           GEMINI_MODEL=gemini-3.5-flash
           WEEKDAYS_ONLY=false
           EOF
-          # Check whether required secrets exist without exposing their values
+          # Inform about SHEET_ID status
           if [ -z "$SHEET_ID" ]; then
-            echo "ERROR: SHEET_ID secret is missing or empty"
-            exit 1
+            echo "ℹ️ SHEET_ID secret is not set (will run in standalone email-notifier mode)"
           else
-            echo "OK: SHEET_ID secret is available"
+            echo "✓ SHEET_ID secret is available"
           fi
 
       - name: Run Email Notifier Tick

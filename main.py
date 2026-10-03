@@ -48,9 +48,10 @@ def build_services(cfg):
     from core.telegram_service import TelegramService
 
     creds = get_credentials(cfg)
+    has_sheet = bool(cfg.sheet_id and not cfg.sheet_id.startswith("PASTE"))
     return {
         "gmail": GmailService(creds, cfg),
-        "sheets": SheetsService.connect(creds, cfg),
+        "sheets": SheetsService.connect(creds, cfg) if has_sheet else None,
         "telegram": TelegramService(cfg),
         "analyzer": AIAnalyzer(cfg),
     }
@@ -61,15 +62,16 @@ def tick(cfg, s, force_window=False, do_outreach=True, do_replies=True):
 
     out = {}
     if do_replies:
-        out["replies"] = reply_monitor_flow.run(cfg, s["gmail"], s["sheets"], s["telegram"], s["analyzer"])
+        out["replies"] = reply_monitor_flow.run(cfg, s["gmail"], s.get("sheets"), s["telegram"], s["analyzer"])
         log.info("replies: %s", out["replies"])
-    if do_outreach:
+    if do_outreach and s.get("sheets"):
         if force_window or in_send_window(cfg):
             out["outreach"] = outreach_flow.run(cfg, s["gmail"], s["sheets"], s["telegram"])
             log.info("outreach: %s", out["outreach"])
         else:
             log.info("Outside send window (%s %02d-%02d), outreach skipped", cfg.send_tz, cfg.send_start_hour, cfg.send_end_hour)
-    s["sheets"].write_dashboard(compute_stats(s["sheets"].get_rows()))
+    if s.get("sheets"):
+        s["sheets"].write_dashboard(compute_stats(s["sheets"].get_rows()))
     return out
 
 

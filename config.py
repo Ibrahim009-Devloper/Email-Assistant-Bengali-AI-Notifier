@@ -117,11 +117,9 @@ def load_config() -> Config:
 def validate(cfg: Config, for_send: bool = True) -> List[str]:
     """Return list of config problems (empty = OK)."""
     p = []
-    if not cfg.sheet_id or cfg.sheet_id.startswith("PASTE"):
-        p.append("SHEET_ID missing")
-    if not os.path.exists(cfg.google_credentials_file) and not os.path.exists(cfg.google_token_file):
-        p.append(f"Google credentials file not found: {cfg.google_credentials_file}")
     if for_send:
+        if not cfg.sheet_id or cfg.sheet_id.startswith("PASTE"):
+            p.append("SHEET_ID missing")
         if not cfg.sender_name:
             p.append("SENDER_NAME missing")
         if not cfg.sender_address:
@@ -130,4 +128,6 @@ def validate(cfg: Config, for_send: bool = True) -> List[str]:
             p.append("OFFER_LINE missing")
         if cfg.delay_min > cfg.delay_max:
             p.append("DELAY_MIN > DELAY_MAX")
+    if not os.path.exists(cfg.google_credentials_file) and not os.path.exists(cfg.google_token_file):
+        p.append(f"Google credentials/token file not found: {cfg.google_credentials_file}")
     return p
