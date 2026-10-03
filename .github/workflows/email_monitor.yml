@@ -33,28 +33,51 @@ jobs:
           SHEET_ID: ${{ secrets.SHEET_ID }}
           SHEET_TAB: ${{ secrets.SHEET_TAB }}
         run: |
-          # Write credentials and token files from encrypted secrets
-          echo "$GOOGLE_CREDENTIALS_JSON" > credentials.json
-          echo "$GOOGLE_TOKEN_JSON" > token.json
-          
-          # Create .env file for configuration
-          cat <<EOF > .env
-          GOOGLE_CREDENTIALS_FILE=credentials.json
+          python -c "
+          import os, sys, json
+          token_raw = os.environ.get('GOOGLE_TOKEN_JSON', '').strip()
+          creds_raw = os.environ.get('GOOGLE_CREDENTIALS_JSON', '').strip()
+
+          if not token_raw:
+              print('❌ [ERROR] Secret GOOGLE_TOKEN_JSON is missing or empty in GitHub Secrets!', file=sys.stderr)
+              print('👉 Solution: Go to GitHub Repo -> Settings -> Secrets and variables -> Actions, and add GOOGLE_TOKEN_JSON with the content of token.json.', file=sys.stderr)
+              sys.exit(1)
+
+          try:
+              json.loads(token_raw)
+          except Exception as e:
+              print(f'❌ [ERROR] GOOGLE_TOKEN_JSON in GitHub Secrets is NOT valid JSON: {e}', file=sys.stderr)
+              sys.exit(1)
+
+          with open('token.json', 'w', encoding='utf-8') as f:
+              f.write(token_raw)
+          print('✓ token.json created successfully')
+
+          if creds_raw:
+              with open('credentials.json', 'w', encoding='utf-8') as f:
+                  f.write(creds_raw)
+              print('✓ credentials.json created successfully')
+
+          sheet_id = os.environ.get('SHEET_ID', '').strip()
+          sheet_tab = os.environ.get('SHEET_TAB', '').strip() or 'Sheet1'
+          tg_token = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
+          tg_chat = os.environ.get('TELEGRAM_CHAT_ID', '').strip()
+          gemini_key = os.environ.get('GEMINI_API_KEY', '').strip()
+
+          env_content = f'''GOOGLE_CREDENTIALS_FILE=credentials.json
           GOOGLE_TOKEN_FILE=token.json
-          SHEET_ID=${SHEET_ID}
-          SHEET_TAB=${SHEET_TAB:-Sheet1}
-          TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-          TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-          GEMINI_API_KEY=${GEMINI_API_KEY}
+          SHEET_ID={sheet_id}
+          SHEET_TAB={sheet_tab}
+          TELEGRAM_BOT_TOKEN={tg_token}
+          TELEGRAM_CHAT_ID={tg_chat}
+          GEMINI_API_KEY={gemini_key}
           GEMINI_MODEL=gemini-3.5-flash
           WEEKDAYS_ONLY=false
-          EOF
-          # Inform about SHEET_ID status
-          if [ -z "$SHEET_ID" ]; then
-            echo "ℹ️ SHEET_ID secret is not set (will run in standalone email-notifier mode)"
-          else
-            echo "✓ SHEET_ID secret is available"
-          fi
+          '''
+          with open('.env', 'w', encoding='utf-8') as f:
+              f.write('\n'.join(line.strip() for line in env_content.strip().split('\n')) + '\n')
+          print('✓ .env configuration file created successfully')
+          "
 
       - name: Run Email Notifier Tick
         run: |
